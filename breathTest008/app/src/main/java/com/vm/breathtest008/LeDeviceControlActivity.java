@@ -16,7 +16,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Message;
+import android.os.Parcelable;
 import android.support.annotation.LongDef;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -47,12 +49,31 @@ public class LeDeviceControlActivity extends Activity{
     private String m_deviceAddress;
     private boolean m_connected;
     private TextView m_connectState;
-    private TextView m_recvCnt;
-    private int m_nCnt;
+    private static TextView m_recvCnt;
+    private static int m_nCnt;
     private BluetoothGattCharacteristic m_BluetoothGattCharacteristic;
 
-    private LineChart m_LineChart_flow;
-    private LineChart m_LineChart_pressure;
+    private static LineChart m_LineChart_flow;
+    private static LineChart m_LineChart_pressure;
+
+    @SuppressLint("HandlerLeak")
+    public static Handler m_Handler=new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            switch (msg.what){
+                case LeService.MSG_DATA_COMMING:
+                    byte[] data= (byte[]) msg.obj;
+                    //显示数据到图表上
+                    m_nCnt+=data.length;
+                    m_recvCnt.setText(String.valueOf(m_nCnt));
+                    showLineChart(data);
+                    break;
+                default:
+                        break;
+            }
+        }
+    };
 
 //    @SuppressLint("HandlerLeak")
 //    private Handler m_Handler=new Handler(){
@@ -75,7 +96,7 @@ public class LeDeviceControlActivity extends Activity{
 //                } catch (InterruptedException e) {
 //                    e.printStackTrace();
 //                }
-//                Message message=new Message();
+//                Message message=obtainMessageage();
 //                message.what=0x01;
 //                m_Handler.sendMessage(message);
 //            }
@@ -151,7 +172,7 @@ public class LeDeviceControlActivity extends Activity{
         }
     };
 
-    public void showLineChart(byte[] bytes){
+    public static void showLineChart(byte[] bytes){
         m_LineChart_flow.getDescription().setEnabled(false);
         m_LineChart_flow.setTouchEnabled(true);
         m_LineChart_flow.setDragEnabled(true);
@@ -248,8 +269,6 @@ public class LeDeviceControlActivity extends Activity{
         }
 //        Log.d(TAG,m_deviceName+" "+m_deviceAddress);
 
-        Intent service=new Intent(this,LeService.class);
-        bindService(service,m_ServiceConnection,BIND_AUTO_CREATE);
 
     }
 
@@ -299,6 +318,10 @@ public class LeDeviceControlActivity extends Activity{
     protected void onResume() {
         super.onResume();
 
+        Intent service=new Intent(this,LeService.class);
+//        service.putExtra("THIS", (Parcelable) this);
+        bindService(service,m_ServiceConnection,BIND_AUTO_CREATE);
+
         registerReceiver(m_BroadcastReceiver,makeInterFilter());
 //        //连接设备
 //        m_LeService=new LeService();
@@ -308,6 +331,7 @@ public class LeDeviceControlActivity extends Activity{
     @Override
     protected void onPause() {
         super.onPause();
+        m_nCnt=0;
         unregisterReceiver(m_BroadcastReceiver);
     }
 

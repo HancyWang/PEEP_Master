@@ -5,8 +5,8 @@ android {
     defaultConfig {
         
         applicationId "com.vm.breathtest008"
-        minSdkVersion 18
-        targetSdkVersion 19
+        minSdkVersion 21
+        targetSdkVersion 21
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"

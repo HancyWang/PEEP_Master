@@ -1,5 +1,6 @@
 package com.vm.breathtest008;
 
+import android.annotation.SuppressLint;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -14,7 +15,9 @@ import android.bluetooth.le.BluetoothLeScanner;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.support.annotation.LongDef;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -23,6 +26,7 @@ import android.widget.TextView;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
+import android.app.Activity;
 
 public class LeService extends Service {
     public static final String ACTION_GATT_CONNECTED="com.vm.breathtest008.ACTION_GATT_CONNECTED";
@@ -32,6 +36,11 @@ public class LeService extends Service {
     public static final String ACTION_GATT_EXTRA_DATA="com.vm.breathtest008.ACTION_GATT_EXTRA_DATA";
     public static final String DATA_LENGTH="com.vm.breathtest008.DATA_LENGTH";
     public final static String CLIENT_CHARACTERISTIC_CONFIG="00002902-0000-1000-8000-00805f9b34fb";
+    public final static int MSG_DATA_COMMING=0x01;
+    public final static int MSG_GATT_CONNECT=0x02;
+    public final static int MSG_GATT_DISCONNECT=0x03;
+    public final static int MSG_SERVICE_DISCV=0x04;
+
     private String TAG="hancy";
     private BluetoothManager m_BluetoothManager;
     private BluetoothAdapter m_BluetoothAdapter;
@@ -53,11 +62,21 @@ public class LeService extends Service {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             super.onConnectionStateChange(gatt, status, newState);
             if(newState== BluetoothProfile.STATE_CONNECTED){
+
+//                Message msg=new Message();
+//                msg.what=MSG_GATT_CONNECT;
+//                LeDeviceControlActivity.m_Handler.sendMessage(msg);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
+                }
                 updateBroadcast(LeService.ACTION_GATT_CONNECTED);
             }
             if(!gatt.discoverServices()){
                 Log.d(TAG,"gatt.discoverServices()发现服务失败");
             }else if(newState==BluetoothProfile.STATE_DISCONNECTED){
+//                Message msg=new Message();
+//                msg.what=MSG_GATT_DISCONNECT;
+//                LeDeviceControlActivity.m_Handler.sendMessage(msg);
                 updateBroadcast(LeService.ACTION_GATT_DISCONNECTED);
             }
         }
@@ -66,6 +85,9 @@ public class LeService extends Service {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             super.onServicesDiscovered(gatt, status);
             if(status==BluetoothGatt.GATT_SUCCESS){
+//                Message msg=new Message();
+//                msg.what=MSG_SERVICE_DISCV;
+//                LeDeviceControlActivity.m_Handler.sendMessage(msg);
                 updateBroadcast(LeService.ACTION_GATT_SERVICE_DISCOVERED);
             }else {
                 Log.d(TAG,"BluetoothGatt的状态不是GATT_SUCCESS");
@@ -85,9 +107,18 @@ public class LeService extends Service {
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             //super.onCharacteristicChanged(gatt, characteristic);
-            updateBroadcast(LeService.ACTION_GATT_DATA_AVAILABLE,characteristic);
 
+            //使用广播速度貌似跟不上
+//            updateBroadcast(LeService.ACTION_GATT_DATA_AVAILABLE,characteristic);
+
+            //采用handler来处理
+            Message msg=new Message();
+            msg.what=MSG_DATA_COMMING;
+            msg.obj= characteristic.getValue();
+            LeDeviceControlActivity.m_Handler.sendMessage(msg);
         }
+
+
     };
 
     public boolean init(){
@@ -124,9 +155,17 @@ public class LeService extends Service {
         Log.d(TAG,"m_BluetoothGatt.setCharacteristicNotification设置成功");
 
         BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG));
-        descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        descriptor.setValue(enable?BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE:BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
         m_BluetoothGatt.writeDescriptor(descriptor);
         Log.d(TAG,"订阅");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            m_BluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
+        }
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         return true;
     }
 
@@ -165,7 +204,15 @@ public class LeService extends Service {
                 Log.d(TAG,"m_BluetoothGatt.connect()连接失败");
                 return false;
             }
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+//                m_BluetoothGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
+//            }
             Log.d(TAG,"m_BluetoothGatt.connect()连接成功");
+//            try {
+//                Thread.sleep(200);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
             return true;
         }
         //如果不存在gatt
