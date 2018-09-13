@@ -30,7 +30,7 @@
     </LinearLayout>
 
     <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/lineChart_flow"
+        android:id="@+id/lineChart_pressure"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
@@ -38,7 +38,7 @@
     </com.github.mikephil.charting.charts.LineChart>
 
     <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/lineChart_pressure"
+        android:id="@+id/lineChart_flow"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">

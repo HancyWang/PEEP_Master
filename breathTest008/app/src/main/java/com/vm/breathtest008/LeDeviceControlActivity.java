@@ -22,12 +22,14 @@ import android.os.Parcelable;
 import android.support.annotation.LongDef;
 import android.support.annotation.Nullable;
 import android.util.Log;
+import android.util.Xml;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.LimitLine;
+import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
@@ -35,7 +37,11 @@ import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.github.mikephil.charting.utils.ColorTemplate;
 
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -55,7 +61,47 @@ public class LeDeviceControlActivity extends Activity{
 
     private static LineChart m_LineChart_flow;
     private static LineChart m_LineChart_pressure;
+    private static LineChart m_Comm_LineChart;
 
+    private static ArrayList<Float> honeywell_data= new ArrayList<>();
+    private static ArrayList<Float> MS5525DSO_data= new ArrayList<>();
+    //图标数据存储
+    private static ArrayList<Entry> m_values=new ArrayList<>();
+    private static ArrayList<Entry> m_honeywell_values=new ArrayList<>();
+    private static ArrayList<Entry> m_MS5525DSO_values=new ArrayList<>();
+    //Y轴上下限
+    private static float HONEYWELL_Y_LOW_LIMIT=0f;      //honeywell
+    private static float HONEYWELL_Y_UP_LIMIT=10000f;  //0-10000,对应1-1.5psi
+
+    private static float MS5525DSO_Y_LOW_LIMIT=0f;     //MS5525DSO
+    private static float MS5525DSO_Y_UP_LIMIT=200f;
+
+    //限制线数值,标签
+    private static float HONEYWELL_LIMIT_LINE_VALUE=7000f;      //honeywell 7.5Kpa,对应1psi
+    private static String HONEYWELL_LIMIT_LINE_LABLE="目标值：7Kpa";
+
+    private static float MS5525DSO_LIMIT_LINE_VALUE=150f;       //MS5525DSO
+    private static String MS5525DSO_LIMIT_LINT_LABLE="100L/min";
+
+    //DataSet Lable
+    private static String HONEYWELL_DATASET_LABLE="压力(单位：pa)";     //honeywell
+    private static String MS5525DSO_DATASET_LABLE="流量(单位：L/min)";   //MS5525DSO
+
+    private enum TYPE{
+        TYPE_HONEYWELL,
+        TYPE_MS5525DSO
+    }
+
+    private static char[] getChars (byte[] bytes) {
+        Charset cs = Charset.forName ("ASCII");
+        ByteBuffer bb = ByteBuffer.allocate (bytes.length);
+        bb.put (bytes);
+        bb.flip ();
+        CharBuffer cb = cs.decode (bb);
+        return cb.array();
+    }
+
+//    private static int fill_cnt=0;
     @SuppressLint("HandlerLeak")
     public static Handler m_Handler=new Handler(){
         @Override
@@ -64,13 +110,47 @@ public class LeDeviceControlActivity extends Activity{
             switch (msg.what){
                 case LeService.MSG_DATA_COMMING:
                     byte[] data= (byte[]) msg.obj;
+//                    char[] data= getChars((byte[]) msg.obj);
                     //显示数据到图表上
                     m_nCnt+=data.length;
                     m_recvCnt.setText(String.valueOf(m_nCnt));
-                    showLineChart(data);
+//                    if(data[0]!=(byte)255){
+//                        return;
+//                    }
+
+//                    //debug
+//                    byte b= (byte) 0xff;
+//                    char d= (char) b;
+
+
+                   if(data.length==19)
+                    {
+                        for(int i=0;i<4;i++){
+                        char tmp_data1 = (char) (((data[1 + 2 * i] & 0xFF) << 8) | (data[1 + 2 * i + 1] & 0xFF));
+                        char tmp_data2 = (char) (((data[9 + 2 * i] & 0xFF) << 8) | (data[9 + 2 * i + 1] & 0xFF));
+                        //值如果超过最高值，就将HONEYWELL_Y_UP_LIMIT赋给tmp_data1
+                        if(tmp_data1>(char)HONEYWELL_Y_UP_LIMIT){
+                            tmp_data1= (char) HONEYWELL_Y_UP_LIMIT;
+                        }
+                        honeywell_data.add((float) tmp_data1);
+                        MS5525DSO_data.add((float) tmp_data2);
+                        }
+
+                        if(honeywell_data.size()==1500)
+                        {
+                            for(int i=0;i<4;i++){
+                                honeywell_data.remove(i);
+                                MS5525DSO_data.remove(i);
+                            }
+                        }
+                        showLineChart(TYPE.TYPE_HONEYWELL,honeywell_data);
+                        showLineChart(TYPE.TYPE_MS5525DSO,MS5525DSO_data);
+                    }
+
+
                     break;
                 default:
-                        break;
+                    break;
             }
         }
     };
@@ -164,61 +244,103 @@ public class LeDeviceControlActivity extends Activity{
 
 //                m_nCnt=LeService.m_nCnt;
 
-                //显示数据到图表上
-               m_nCnt+=data.length;
-                m_recvCnt.setText(String.valueOf(m_nCnt));
-                showLineChart(data);
+//                //显示数据到图表上
+//               m_nCnt+=data.length;
+//                m_recvCnt.setText(String.valueOf(m_nCnt));
+//                showLineChart(data);
             }
         }
     };
 
-    public static void showLineChart(byte[] bytes){
-        m_LineChart_flow.getDescription().setEnabled(false);
-        m_LineChart_flow.setTouchEnabled(true);
-        m_LineChart_flow.setDragEnabled(true);
-        m_LineChart_flow.setScaleEnabled(true);
-        m_LineChart_flow.setPinchZoom(true);
+    public static void showLineChart(TYPE type,ArrayList<Float> datas){
+        if(type==TYPE.TYPE_HONEYWELL){
+            m_Comm_LineChart=m_LineChart_pressure;
+        }else if (type==TYPE.TYPE_MS5525DSO){
+            m_Comm_LineChart=m_LineChart_flow;
+        }
+        m_Comm_LineChart.getDescription().setEnabled(false);
+        m_Comm_LineChart.setTouchEnabled(true);
+        m_Comm_LineChart.setDragEnabled(true);
+        m_Comm_LineChart.setScaleEnabled(true);
+        m_Comm_LineChart.setPinchZoom(true);
 
-        m_LineChart_flow.clear();
+        m_Comm_LineChart.clear();
 
-        YAxis leftAxis = m_LineChart_flow.getAxisLeft();
+        XAxis xAxis= m_Comm_LineChart.getXAxis();
+        xAxis.setAxisMinimum(0f);
+        xAxis.setAxisMaximum(1500f);
+        xAxis.setDrawGridLines(true);
+//        xAxis.enableGridDashedLine(1f,0,1f);
+        xAxis.setEnabled(false);
+
+        YAxis leftAxis = m_Comm_LineChart.getAxisLeft();
         leftAxis.setTextColor(ColorTemplate.getHoloBlue());
-        leftAxis.setAxisMaximum(58f);
-        leftAxis.setAxisMinimum(48f);
+        if(type==TYPE.TYPE_HONEYWELL){
+            leftAxis.setAxisMaximum(HONEYWELL_Y_UP_LIMIT);
+            leftAxis.setAxisMinimum(HONEYWELL_Y_LOW_LIMIT);
+        }else if (type==TYPE.TYPE_MS5525DSO){
+            leftAxis.setAxisMaximum(MS5525DSO_Y_UP_LIMIT);
+            leftAxis.setAxisMinimum(MS5525DSO_Y_LOW_LIMIT);
+        }
+
 
 //        YAxis rightAxis = m_LineChart_flow.getAxisRight();
 //        rightAxis.setAxisMaximum(58f);
 //        rightAxis.setAxisMinimum(48f);
-        m_LineChart_flow.getAxisRight().setEnabled(false); //去掉右边的y轴
+        m_Comm_LineChart.getAxisRight().setEnabled(false); //去掉右边的y轴
 
-        LimitLine ll1 = new LimitLine(50f, "50");
-        ll1.setLineWidth(4f);
-        ll1.enableDashedLine(5f, 5f, 0f);
-        ll1.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
-        ll1.setTextSize(10f);
+        LimitLine lll=null;
+        if(type==TYPE.TYPE_HONEYWELL){
+            lll = new LimitLine(HONEYWELL_LIMIT_LINE_VALUE, HONEYWELL_LIMIT_LINE_LABLE);
+//            lll.setLineColor(Color.BLACK);
+        }else if (type==TYPE.TYPE_MS5525DSO){
+            lll = new LimitLine(MS5525DSO_LIMIT_LINE_VALUE, MS5525DSO_LIMIT_LINT_LABLE);
+        }
+        lll.setLineWidth(1.5f);
+        lll.enableDashedLine(5f, 5f, 0f);
+        lll.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
+        lll.setTextSize(10f);
         leftAxis.removeAllLimitLines();  // reset all limit lines to avoid overlapping lines
-        leftAxis.addLimitLine(ll1);
+        leftAxis.addLimitLine(lll);
+        leftAxis.addLimitLine(lll);
 
-        ArrayList<Entry> values=new ArrayList<>();
-        for(int i=0;i<bytes.length;i++){
-            values.add(new Entry(i,bytes[i]));
+//        ArrayList<Entry> values=new ArrayList<>();
+//        for(int i=0;i<datas.size();i++){
+//            values.add(new Entry(i,datas.get(i)));
+//        }
+        if(type==TYPE.TYPE_HONEYWELL){
+            m_values=m_honeywell_values;
+        }else if (type==TYPE.TYPE_MS5525DSO){
+            m_values=m_MS5525DSO_values;
+        }
+        m_values.clear();
+        for(int i=0;i<datas.size();i++){
+            m_values.add(new Entry(i,datas.get(i)));
         }
 
         LineDataSet set1;
 
-        if(m_LineChart_flow.getData()!=null&&m_LineChart_flow.getData().getDataSetCount()>0){
-            set1=(LineDataSet) m_LineChart_flow.getData().getDataSetByIndex(0);
-            set1.setValues(values);
-            m_LineChart_flow.getData().notifyDataChanged();
-            m_LineChart_flow.notifyDataSetChanged();
+        if(m_Comm_LineChart.getData()!=null&&m_Comm_LineChart.getData().getDataSetCount()>0){
+            set1=(LineDataSet) m_Comm_LineChart.getData().getDataSetByIndex(0);
+            set1.setValues(m_values);
+            m_Comm_LineChart.getData().notifyDataChanged();
+            m_Comm_LineChart.notifyDataSetChanged();
         }else {
-            set1=new LineDataSet(values,"DataSet1");
+            String label=null;
+            if(type==TYPE.TYPE_HONEYWELL){
+                label=HONEYWELL_DATASET_LABLE;
+            }else if (type==TYPE.TYPE_MS5525DSO){
+                label=MS5525DSO_DATASET_LABLE;
+            }
+
+            set1=new LineDataSet(m_values,label);
+            set1.setCircleRadius(1f);
 
             ArrayList<ILineDataSet> dataSets=new ArrayList<>();
             dataSets.add(set1);
 
             LineData data=new LineData(dataSets);
-            m_LineChart_flow.setData(data);
+            m_Comm_LineChart.setData(data);
         }
     }
 
@@ -262,17 +384,12 @@ public class LeDeviceControlActivity extends Activity{
         if(name.contains(DEVICE_NAME)){
             m_deviceName=name;
             m_deviceAddress=address;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                Objects.requireNonNull(getActionBar()).setTitle(m_deviceName);
-                Objects.requireNonNull(getActionBar()).setDisplayHomeAsUpEnabled(true);
-            }
+            Objects.requireNonNull(getActionBar()).setTitle(m_deviceName);
+            Objects.requireNonNull(getActionBar()).setDisplayHomeAsUpEnabled(true);
         }
 //        Log.d(TAG,m_deviceName+" "+m_deviceAddress);
-
-
     }
 
-    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.conncet_disconnect,menu);
         if(m_connected){
