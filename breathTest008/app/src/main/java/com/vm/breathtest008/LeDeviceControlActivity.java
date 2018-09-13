@@ -74,18 +74,18 @@ public class LeDeviceControlActivity extends Activity{
     private static float HONEYWELL_Y_UP_LIMIT=10000f;  //0-10000,对应1-1.5psi
 
     private static float MS5525DSO_Y_LOW_LIMIT=0f;     //MS5525DSO
-    private static float MS5525DSO_Y_UP_LIMIT=200f;
+    private static float MS5525DSO_Y_UP_LIMIT=12000f;
 
     //限制线数值,标签
     private static float HONEYWELL_LIMIT_LINE_VALUE=7000f;      //honeywell 7.5Kpa,对应1psi
     private static String HONEYWELL_LIMIT_LINE_LABLE="目标值：7Kpa";
 
-    private static float MS5525DSO_LIMIT_LINE_VALUE=150f;       //MS5525DSO
-    private static String MS5525DSO_LIMIT_LINT_LABLE="100L/min";
+    private static float MS5525DSO_LIMIT_LINE_VALUE=5000f;       //MS5525DSO
+    private static String MS5525DSO_LIMIT_LINT_LABLE="50L/min";
 
     //DataSet Lable
     private static String HONEYWELL_DATASET_LABLE="压力(单位：pa)";     //honeywell
-    private static String MS5525DSO_DATASET_LABLE="流量(单位：L/min)";   //MS5525DSO
+    private static String MS5525DSO_DATASET_LABLE="流量(单位：10ml/min)";   //MS5525DSO
 
     private enum TYPE{
         TYPE_HONEYWELL,
