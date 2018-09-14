@@ -28,18 +28,22 @@ import android.view.MenuItem;
 import android.widget.TextView;
 
 import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.AxisBase;
 import com.github.mikephil.charting.components.LimitLine;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.formatter.IAxisValueFormatter;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.github.mikephil.charting.utils.ColorTemplate;
 
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -71,7 +75,7 @@ public class LeDeviceControlActivity extends Activity{
     private static ArrayList<Entry> m_MS5525DSO_values=new ArrayList<>();
     //Y轴上下限
     private static float HONEYWELL_Y_LOW_LIMIT=0f;      //honeywell
-    private static float HONEYWELL_Y_UP_LIMIT=10000f;  //0-10000,对应1-1.5psi
+    private static float HONEYWELL_Y_UP_LIMIT=10000;  //0-10,000pa,对应1-1.5psi
 
     private static float MS5525DSO_Y_LOW_LIMIT=0f;     //MS5525DSO
     private static float MS5525DSO_Y_UP_LIMIT=12000f;
@@ -81,11 +85,11 @@ public class LeDeviceControlActivity extends Activity{
     private static String HONEYWELL_LIMIT_LINE_LABLE="目标值：7Kpa";
 
     private static float MS5525DSO_LIMIT_LINE_VALUE=5000f;       //MS5525DSO
-    private static String MS5525DSO_LIMIT_LINT_LABLE="50L/min";
+    private static String MS5525DSO_LIMIT_LINT_LABLE="目标值：50L/min";
 
     //DataSet Lable
-    private static String HONEYWELL_DATASET_LABLE="压力(单位：pa)";     //honeywell
-    private static String MS5525DSO_DATASET_LABLE="流量(单位：10ml/min)";   //MS5525DSO
+    private static String HONEYWELL_DATASET_LABLE="压力(单位：KPa)";     //honeywell
+    private static String MS5525DSO_DATASET_LABLE="流量(单位：L/min)";   //MS5525DSO
 
     private enum TYPE{
         TYPE_HONEYWELL,
@@ -121,8 +125,6 @@ public class LeDeviceControlActivity extends Activity{
 //                    //debug
 //                    byte b= (byte) 0xff;
 //                    char d= (char) b;
-
-
                    if(data.length==19)
                     {
                         for(int i=0;i<4;i++){
@@ -132,6 +134,7 @@ public class LeDeviceControlActivity extends Activity{
                         if(tmp_data1>(char)HONEYWELL_Y_UP_LIMIT){
                             tmp_data1= (char) HONEYWELL_Y_UP_LIMIT;
                         }
+//                            honeywell_data.add(Float.intBitsToFloat(tmp_data1)/1000);
                         honeywell_data.add((float) tmp_data1);
                         MS5525DSO_data.add((float) tmp_data2);
                         }
@@ -146,8 +149,6 @@ public class LeDeviceControlActivity extends Activity{
                         showLineChart(TYPE.TYPE_HONEYWELL,honeywell_data);
                         showLineChart(TYPE.TYPE_MS5525DSO,MS5525DSO_data);
                     }
-
-
                     break;
                 default:
                     break;
@@ -252,7 +253,29 @@ public class LeDeviceControlActivity extends Activity{
         }
     };
 
+    private static class Honeywell_YValueFormatter implements IAxisValueFormatter{
+        @Override
+        public String getFormattedValue(float value, AxisBase axis) {
+//            return String.valueOf(new DecimalFormat().format(value/1000))+"KPa";
+            return String.valueOf(new DecimalFormat().format(value/1000));
+        }
+    }
+
+    private static class MS5525DSO_YValueFormatter implements IAxisValueFormatter{
+        @Override
+        public String getFormattedValue(float value, AxisBase axis) {
+//            return String.valueOf(new DecimalFormat().format(value/100))+"L/min";
+            return String.valueOf(new DecimalFormat().format(value/100));
+        }
+    }
+
+    private static Honeywell_YValueFormatter honeywell_yValueFormatter=new Honeywell_YValueFormatter();
+    private static MS5525DSO_YValueFormatter ms5525DSO_yValueFormatter=new MS5525DSO_YValueFormatter();
+
     public static void showLineChart(TYPE type,ArrayList<Float> datas){
+        if(datas==null||datas.size()==0){
+            return;
+        }
         if(type==TYPE.TYPE_HONEYWELL){
             m_Comm_LineChart=m_LineChart_pressure;
         }else if (type==TYPE.TYPE_MS5525DSO){
@@ -278,9 +301,15 @@ public class LeDeviceControlActivity extends Activity{
         if(type==TYPE.TYPE_HONEYWELL){
             leftAxis.setAxisMaximum(HONEYWELL_Y_UP_LIMIT);
             leftAxis.setAxisMinimum(HONEYWELL_Y_LOW_LIMIT);
+            leftAxis.setValueFormatter(honeywell_yValueFormatter);
+
+//            leftAxis.setAxisMaximum(15f);
+//            leftAxis.setAxisMinimum(0f);
+
         }else if (type==TYPE.TYPE_MS5525DSO){
             leftAxis.setAxisMaximum(MS5525DSO_Y_UP_LIMIT);
             leftAxis.setAxisMinimum(MS5525DSO_Y_LOW_LIMIT);
+            leftAxis.setValueFormatter(ms5525DSO_yValueFormatter);
         }
 
 
