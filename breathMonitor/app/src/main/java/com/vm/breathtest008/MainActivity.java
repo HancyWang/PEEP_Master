@@ -146,6 +146,11 @@ public class MainActivity extends ListActivity {
         super.onCreate(savedInstanceState);
 //        setContentView(R.layout.activity_main);
 
+        //debug
+        char cha=12345;
+        float fa=(float) cha/1000;
+
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             Objects.requireNonNull(getActionBar()).setTitle("设备列表");
         }

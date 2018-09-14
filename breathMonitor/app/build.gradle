@@ -17,6 +17,20 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    android.applicationVariants.all { variant ->
+            variant.outputs.all {
+                //def date = new Date().format("yyyyMMdd" , TimeZone.getTimeZone("Asia/Shanghai"))
+                def date = new Date().format("yyyyMMdd" , TimeZone.getTimeZone("GMT+08"))
+                if(variant.buildType.name == 'debug'){
+                    outputFileName = "呼吸监测${date}_${versionName}.apk"
+                }
+                if(variant.buildType.name == 'release'){
+                    outputFileName = "呼吸监测${date}_${versionName}.apk"
+                }
+            }
+    }
+
     buildToolsVersion '27.0.3'
 }
 
