@@ -67,33 +67,35 @@ public class LeDeviceControlActivity extends Activity{
     private static LineChart m_LineChart_pressure;
     private static LineChart m_Comm_LineChart;
 
-    private static ArrayList<Float> honeywell_data= new ArrayList<>();
-    private static ArrayList<Float> MS5525DSO_data= new ArrayList<>();
+    private static ArrayList<Float> pressure_data= new ArrayList<>();
+    private static ArrayList<Float> flow_data= new ArrayList<>();
     //图标数据存储
     private static ArrayList<Entry> m_values=new ArrayList<>();
-    private static ArrayList<Entry> m_honeywell_values=new ArrayList<>();
-    private static ArrayList<Entry> m_MS5525DSO_values=new ArrayList<>();
+    private static ArrayList<Entry> m_pressure_values=new ArrayList<>();
+    private static ArrayList<Entry> m_flow_values=new ArrayList<>();
     //Y轴上下限
-    private static float HONEYWELL_Y_LOW_LIMIT=0f;      //honeywell
-    private static float HONEYWELL_Y_UP_LIMIT=10000;  //0-10,000pa,对应1-1.5psi
+    private static float PRESSURE_Y_LOW_LIMIT=-20000f;      //honeywell
+    private static float PRESSURE_Y_UP_LIMIT=20000;  //0-10,000pa,对应1-1.5psi
 
-    private static float MS5525DSO_Y_LOW_LIMIT=0f;     //MS5525DSO
-    private static float MS5525DSO_Y_UP_LIMIT=12000f;
+    private static float FLOW_Y_LOW_LIMIT=-9000f;     //流量 -90L/min
+    private static float FLOW_Y_UP_LIMIT=9000f;       //流量 90L/min
 
     //限制线数值,标签
-    private static float HONEYWELL_LIMIT_LINE_VALUE=7000f;      //honeywell 7.5Kpa,对应1psi
-    private static String HONEYWELL_LIMIT_LINE_LABLE="目标值：7Kpa";
+    private static float PRESSURE_LIMIT_LINE_VALUE=10000f;      //honeywell 7.5Kpa,对应1psi
+    private static String PRESSURE_LIMIT_LINE_LABLE="目标值：7Kpa";
 
-    private static float MS5525DSO_LIMIT_LINE_VALUE=5000f;       //MS5525DSO
-    private static String MS5525DSO_LIMIT_LINT_LABLE="目标值：50L/min";
+    private static float FLOW_LIMIT_LINE_VALUE=5000f;       // 目标50L/min
+    private static String FLOW_LIMIT_LINT_LABLE="目标值：50L/min";
 
     //DataSet Lable
-    private static String HONEYWELL_DATASET_LABLE="压力(单位：KPa)";     //honeywell
-    private static String MS5525DSO_DATASET_LABLE="流量(单位：L/min)";   //MS5525DSO
+    private static String PRESSURE_DATASET_LABLE="压力(单位：KPa)";     //honeywell
+    private static String FLOW_DATASET_LABLE="流量(单位：L/min)";   //MS5525DSO
+
+    private static int DATA_NUMS=4;
 
     private enum TYPE{
-        TYPE_HONEYWELL,
-        TYPE_MS5525DSO
+        TYPE_PRESSURE,
+        TYPE_FLOW
     }
 
     private static char[] getChars (byte[] bytes) {
@@ -125,29 +127,33 @@ public class LeDeviceControlActivity extends Activity{
 //                    //debug
 //                    byte b= (byte) 0xff;
 //                    char d= (char) b;
-                   if(data.length==19)
+                   if(data.length==1+DATA_NUMS*2*2+2)
                     {
-                        for(int i=0;i<4;i++){
-                        char tmp_data1 = (char) (((data[1 + 2 * i] & 0xFF) << 8) | (data[1 + 2 * i + 1] & 0xFF));
-                        char tmp_data2 = (char) (((data[9 + 2 * i] & 0xFF) << 8) | (data[9 + 2 * i + 1] & 0xFF));
+                        for(int i=0;i<DATA_NUMS;i++){
+                         short tmp_data1 = (short) (((data[1 + 2 * i] & 0xFF) << 8) | (data[1 + 2 * i + 1] & 0xFF));
+                        short tmp_data2 = (short) (((data[1+DATA_NUMS*2 + 2 * i] & 0xFF) << 8) | (data[1+DATA_NUMS*2 + 2 * i + 1] & 0xFF));
                         //值如果超过最高值，就将HONEYWELL_Y_UP_LIMIT赋给tmp_data1
-                        if(tmp_data1>(char)HONEYWELL_Y_UP_LIMIT){
-                            tmp_data1= (char) HONEYWELL_Y_UP_LIMIT;
+                        if(tmp_data1>=(short)PRESSURE_Y_UP_LIMIT){
+                            tmp_data1= (short) PRESSURE_Y_UP_LIMIT;
                         }
-//                            honeywell_data.add(Float.intBitsToFloat(tmp_data1)/1000);
-                        honeywell_data.add((float) tmp_data1);
-                        MS5525DSO_data.add((float) tmp_data2);
+                        else if(tmp_data1<(short)PRESSURE_Y_LOW_LIMIT){
+                            tmp_data1=(short)PRESSURE_Y_LOW_LIMIT;
                         }
 
-                        if(honeywell_data.size()==1500)
+//                            pressure_data.add(Float.intBitsToFloat(tmp_data1)/1000);
+                        pressure_data.add((float) tmp_data1);
+                        flow_data.add((float) tmp_data2);
+                        }
+
+                        if(pressure_data.size()==1500)
                         {
-                            for(int i=0;i<4;i++){
-                                honeywell_data.remove(i);
-                                MS5525DSO_data.remove(i);
+                            for(int i=0;i<DATA_NUMS;i++){
+                                pressure_data.remove(i);
+                                flow_data.remove(i);
                             }
                         }
-                        showLineChart(TYPE.TYPE_HONEYWELL,honeywell_data);
-                        showLineChart(TYPE.TYPE_MS5525DSO,MS5525DSO_data);
+                        showLineChart(TYPE.TYPE_PRESSURE,pressure_data);
+                        showLineChart(TYPE.TYPE_FLOW,flow_data);
                     }
                     break;
                 default:
@@ -253,7 +259,7 @@ public class LeDeviceControlActivity extends Activity{
         }
     };
 
-    private static class Honeywell_YValueFormatter implements IAxisValueFormatter{
+    private static class Pressure_YValueFormatter implements IAxisValueFormatter{
         @Override
         public String getFormattedValue(float value, AxisBase axis) {
 //            return String.valueOf(new DecimalFormat().format(value/1000))+"KPa";
@@ -261,7 +267,7 @@ public class LeDeviceControlActivity extends Activity{
         }
     }
 
-    private static class MS5525DSO_YValueFormatter implements IAxisValueFormatter{
+    private static class Flow_YValueFormatter implements IAxisValueFormatter{
         @Override
         public String getFormattedValue(float value, AxisBase axis) {
 //            return String.valueOf(new DecimalFormat().format(value/100))+"L/min";
@@ -269,16 +275,16 @@ public class LeDeviceControlActivity extends Activity{
         }
     }
 
-    private static Honeywell_YValueFormatter honeywell_yValueFormatter=new Honeywell_YValueFormatter();
-    private static MS5525DSO_YValueFormatter ms5525DSO_yValueFormatter=new MS5525DSO_YValueFormatter();
+    private static Pressure_YValueFormatter pressure_yValueFormatter=new Pressure_YValueFormatter();
+    private static Flow_YValueFormatter flow_yValueFormatter=new Flow_YValueFormatter();
 
     public static void showLineChart(TYPE type,ArrayList<Float> datas){
         if(datas==null||datas.size()==0){
             return;
         }
-        if(type==TYPE.TYPE_HONEYWELL){
+        if(type==TYPE.TYPE_PRESSURE){
             m_Comm_LineChart=m_LineChart_pressure;
-        }else if (type==TYPE.TYPE_MS5525DSO){
+        }else if (type==TYPE.TYPE_FLOW){
             m_Comm_LineChart=m_LineChart_flow;
         }
         m_Comm_LineChart.getDescription().setEnabled(false);
@@ -298,18 +304,18 @@ public class LeDeviceControlActivity extends Activity{
 
         YAxis leftAxis = m_Comm_LineChart.getAxisLeft();
         leftAxis.setTextColor(ColorTemplate.getHoloBlue());
-        if(type==TYPE.TYPE_HONEYWELL){
-            leftAxis.setAxisMaximum(HONEYWELL_Y_UP_LIMIT);
-            leftAxis.setAxisMinimum(HONEYWELL_Y_LOW_LIMIT);
-            leftAxis.setValueFormatter(honeywell_yValueFormatter);
+        if(type==TYPE.TYPE_PRESSURE){
+            leftAxis.setAxisMaximum(PRESSURE_Y_UP_LIMIT);
+            leftAxis.setAxisMinimum(PRESSURE_Y_LOW_LIMIT);
+            leftAxis.setValueFormatter(pressure_yValueFormatter);
 
 //            leftAxis.setAxisMaximum(15f);
 //            leftAxis.setAxisMinimum(0f);
 
-        }else if (type==TYPE.TYPE_MS5525DSO){
-            leftAxis.setAxisMaximum(MS5525DSO_Y_UP_LIMIT);
-            leftAxis.setAxisMinimum(MS5525DSO_Y_LOW_LIMIT);
-            leftAxis.setValueFormatter(ms5525DSO_yValueFormatter);
+        }else if (type==TYPE.TYPE_FLOW){
+            leftAxis.setAxisMaximum(FLOW_Y_UP_LIMIT);
+            leftAxis.setAxisMinimum(FLOW_Y_LOW_LIMIT);
+            leftAxis.setValueFormatter(flow_yValueFormatter);
         }
 
 
@@ -319,11 +325,11 @@ public class LeDeviceControlActivity extends Activity{
         m_Comm_LineChart.getAxisRight().setEnabled(false); //去掉右边的y轴
 
         LimitLine lll=null;
-        if(type==TYPE.TYPE_HONEYWELL){
-            lll = new LimitLine(HONEYWELL_LIMIT_LINE_VALUE, HONEYWELL_LIMIT_LINE_LABLE);
+        if(type==TYPE.TYPE_PRESSURE){
+            lll = new LimitLine(PRESSURE_LIMIT_LINE_VALUE, PRESSURE_LIMIT_LINE_LABLE);
 //            lll.setLineColor(Color.BLACK);
-        }else if (type==TYPE.TYPE_MS5525DSO){
-            lll = new LimitLine(MS5525DSO_LIMIT_LINE_VALUE, MS5525DSO_LIMIT_LINT_LABLE);
+        }else if (type==TYPE.TYPE_FLOW){
+            lll = new LimitLine(FLOW_LIMIT_LINE_VALUE, FLOW_LIMIT_LINT_LABLE);
         }
         lll.setLineWidth(1.5f);
         lll.enableDashedLine(5f, 5f, 0f);
@@ -337,10 +343,10 @@ public class LeDeviceControlActivity extends Activity{
 //        for(int i=0;i<datas.size();i++){
 //            values.add(new Entry(i,datas.get(i)));
 //        }
-        if(type==TYPE.TYPE_HONEYWELL){
-            m_values=m_honeywell_values;
-        }else if (type==TYPE.TYPE_MS5525DSO){
-            m_values=m_MS5525DSO_values;
+        if(type==TYPE.TYPE_PRESSURE){
+            m_values=m_pressure_values;
+        }else if (type==TYPE.TYPE_FLOW){
+            m_values=m_flow_values;
         }
         m_values.clear();
         for(int i=0;i<datas.size();i++){
@@ -356,13 +362,15 @@ public class LeDeviceControlActivity extends Activity{
             m_Comm_LineChart.notifyDataSetChanged();
         }else {
             String label=null;
-            if(type==TYPE.TYPE_HONEYWELL){
-                label=HONEYWELL_DATASET_LABLE;
-            }else if (type==TYPE.TYPE_MS5525DSO){
-                label=MS5525DSO_DATASET_LABLE;
+            if(type==TYPE.TYPE_PRESSURE){
+                label=PRESSURE_DATASET_LABLE;
+            }else if (type==TYPE.TYPE_FLOW){
+                label=FLOW_DATASET_LABLE;
             }
 
             set1=new LineDataSet(m_values,label);
+//            set1.setDrawCircleHole(false);
+//            set1.setDrawCircles(false);
             set1.setCircleRadius(1f);
 
             ArrayList<ILineDataSet> dataSets=new ArrayList<>();
