@@ -74,18 +74,22 @@ public class LeDeviceControlActivity extends Activity{
     private static ArrayList<Entry> m_pressure_values=new ArrayList<>();
     private static ArrayList<Entry> m_flow_values=new ArrayList<>();
     //Y轴上下限
-    private static float PRESSURE_Y_LOW_LIMIT=-20000f;      //honeywell
-    private static float PRESSURE_Y_UP_LIMIT=20000;  //0-10,000pa,对应1-1.5psi
+    private static float PRESSURE_Y_LOW_LIMIT=-20000f;      // -2KPa
+    private static float PRESSURE_Y_UP_LIMIT=20000f;        //2KPa
 
-    private static float FLOW_Y_LOW_LIMIT=-9000f;     //流量 -90L/min
-    private static float FLOW_Y_UP_LIMIT=9000f;       //流量 90L/min
+    private static float FLOW_Y_LOW_LIMIT=-13000f;     //流量 -130L/min
+    private static float FLOW_Y_UP_LIMIT=14000f;       //流量 140L/min
 
     //限制线数值,标签
-    private static float PRESSURE_LIMIT_LINE_VALUE=10000f;      //honeywell 7.5Kpa,对应1psi
-    private static String PRESSURE_LIMIT_LINE_LABLE="目标值：7Kpa";
+    private static float PRESSURE_INHALE_LIMIT_LINE_VALUE=-10000f;      //-1KPa
+    private static String PRESSURE_INHALE_LIMIT_LINE_LABLE="吸气：-1Kpa";
+    private static float PRESSURE_EXHALE_LIMIT_LINE_VALUE=10000f;      //1KPa
+    private static String PRESSURE_EXHALE_LIMIT_LINE_LABLE="呼气：1Kpa";
 
-    private static float FLOW_LIMIT_LINE_VALUE=5000f;       // 目标50L/min
-    private static String FLOW_LIMIT_LINT_LABLE="目标值：50L/min";
+    private static float FLOW_INHALE_LIMIT_LINE_VALUE=-13000f;       // 目标50L/min
+    private static String FLOW_INHALE_LIMIT_LINT_LABLE="吸气：-130L/min";
+    private static float FLOW_EXHALE_LIMIT_LINE_VALUE=13000f;       // 目标50L/min
+    private static String FLOW_EXHALE_LIMIT_LINT_LABLE="呼气：130L/min";
 
     //DataSet Lable
     private static String PRESSURE_DATASET_LABLE="压力(单位：KPa)";     //honeywell
@@ -138,6 +142,12 @@ public class LeDeviceControlActivity extends Activity{
                         }
                         else if(tmp_data1<(short)PRESSURE_Y_LOW_LIMIT){
                             tmp_data1=(short)PRESSURE_Y_LOW_LIMIT;
+                        }
+
+                        if(tmp_data2>=(short)FLOW_Y_UP_LIMIT){
+                            tmp_data2=(short)FLOW_Y_UP_LIMIT;
+                        }else if(tmp_data2<(short)FLOW_Y_LOW_LIMIT){
+                            tmp_data2=(short)FLOW_Y_LOW_LIMIT;
                         }
 
 //                            pressure_data.add(Float.intBitsToFloat(tmp_data1)/1000);
@@ -263,7 +273,7 @@ public class LeDeviceControlActivity extends Activity{
         @Override
         public String getFormattedValue(float value, AxisBase axis) {
 //            return String.valueOf(new DecimalFormat().format(value/1000))+"KPa";
-            return String.valueOf(new DecimalFormat().format(value/1000));
+            return String.valueOf(new DecimalFormat().format(value/10000));
         }
     }
 
@@ -292,6 +302,7 @@ public class LeDeviceControlActivity extends Activity{
         m_Comm_LineChart.setDragEnabled(true);
         m_Comm_LineChart.setScaleEnabled(true);
         m_Comm_LineChart.setPinchZoom(true);
+//        m_Comm_LineChart.setBorderWidth(10f);
 
         m_Comm_LineChart.clear();
 
@@ -324,21 +335,38 @@ public class LeDeviceControlActivity extends Activity{
 //        rightAxis.setAxisMinimum(48f);
         m_Comm_LineChart.getAxisRight().setEnabled(false); //去掉右边的y轴
 
-        LimitLine lll=null;
+        leftAxis.removeAllLimitLines();  // reset all limit lines to avoid overlapping lines
+        //设置上限
+        LimitLine lll_up=null;
         if(type==TYPE.TYPE_PRESSURE){
-            lll = new LimitLine(PRESSURE_LIMIT_LINE_VALUE, PRESSURE_LIMIT_LINE_LABLE);
+            lll_up = new LimitLine(PRESSURE_EXHALE_LIMIT_LINE_VALUE, PRESSURE_EXHALE_LIMIT_LINE_LABLE);
 //            lll.setLineColor(Color.BLACK);
         }else if (type==TYPE.TYPE_FLOW){
-            lll = new LimitLine(FLOW_LIMIT_LINE_VALUE, FLOW_LIMIT_LINT_LABLE);
+            lll_up = new LimitLine(FLOW_EXHALE_LIMIT_LINE_VALUE, FLOW_EXHALE_LIMIT_LINT_LABLE);
         }
-        lll.setLineWidth(1.5f);
-        lll.enableDashedLine(5f, 5f, 0f);
-        lll.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
-        lll.setTextSize(10f);
-        leftAxis.removeAllLimitLines();  // reset all limit lines to avoid overlapping lines
-        leftAxis.addLimitLine(lll);
-        leftAxis.addLimitLine(lll);
+        lll_up.setLineWidth(1.5f);
+        lll_up.enableDashedLine(5f, 5f, 0f);
+        lll_up.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
+        lll_up.setTextSize(10f);
+//        leftAxis.removeAllLimitLines();  // reset all limit lines to avoid overlapping lines
+        leftAxis.addLimitLine(lll_up);
+        leftAxis.addLimitLine(lll_up);
 
+        //设置下限
+        LimitLine lll_down=null;
+        if(type==TYPE.TYPE_PRESSURE){
+            lll_down = new LimitLine(PRESSURE_INHALE_LIMIT_LINE_VALUE, PRESSURE_INHALE_LIMIT_LINE_LABLE);
+//            lll.setLineColor(Color.BLACK);
+        }else if (type==TYPE.TYPE_FLOW){
+            lll_down = new LimitLine(FLOW_INHALE_LIMIT_LINE_VALUE, FLOW_INHALE_LIMIT_LINT_LABLE);
+        }
+        lll_down.setLineWidth(1.5f);
+        lll_down.enableDashedLine(5f, 5f, 0f);
+        lll_down.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
+        lll_down.setTextSize(10f);
+//        leftAxis.removeAllLimitLines();  // reset all limit lines to avoid overlapping lines
+        leftAxis.addLimitLine(lll_down);
+        leftAxis.addLimitLine(lll_down);
 //        ArrayList<Entry> values=new ArrayList<>();
 //        for(int i=0;i<datas.size();i++){
 //            values.add(new Entry(i,datas.get(i)));
@@ -370,8 +398,10 @@ public class LeDeviceControlActivity extends Activity{
 
             set1=new LineDataSet(m_values,label);
 //            set1.setDrawCircleHole(false);
-//            set1.setDrawCircles(false);
-            set1.setCircleRadius(1f);
+            set1.setLineWidth(2f);
+            set1.setCubicIntensity(1f);
+            set1.setDrawCircles(false);
+//            set1.setCircleRadius(5f);
 
             ArrayList<ILineDataSet> dataSets=new ArrayList<>();
             dataSets.add(set1);
