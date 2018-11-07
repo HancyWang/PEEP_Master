@@ -29,6 +29,152 @@
             android:textSize="20sp"/>
     </LinearLayout>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="76dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/textView_MIP_lable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/mip" />
+
+            <TextView
+                android:id="@+id/textview_PIVC_lable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/pivc" />
+
+            <TextView
+                android:id="@+id/textView_PIV1_lable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/piv1" />
+
+            <TextView
+                android:id="@+id/textview_PIV1_percent_lable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="PIV1%:" />
+
+            <TextView
+                android:id="@+id/textView_PIF_lable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="PIF:" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="121dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/textView_MIP_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/textView_PIVC_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/textView_PIV1_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/textView_PIV1_percent_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/textView_PIF_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="71dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/textView_MEP_lable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="MEP:" />
+
+            <TextView
+                android:id="@+id/textView_FVC_lable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="FVC:" />
+
+            <TextView
+                android:id="@+id/textView_FEV1_lable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="FEV1:" />
+
+            <TextView
+                android:id="@+id/textView_FEV1_percnet_lable"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="FEV1%:" />
+
+            <TextView
+                android:id="@+id/textView_PEF_lable"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:text="PEF:" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/textView_MEP_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/textView_FVC_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/textView_FEV1_value"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/textview_FEV1_percent_value"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/textView_PEF_value"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+        </LinearLayout>
+    </LinearLayout>
+
     <com.github.mikephil.charting.charts.LineChart
         android:id="@+id/lineChart_pressure"
         android:layout_width="match_parent"

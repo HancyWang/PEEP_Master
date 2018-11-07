@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -61,6 +62,22 @@ public class LeDeviceControlActivity extends Activity{
     private TextView m_connectState;
     private static TextView m_recvCnt;
     private static int m_nCnt;
+
+    //呼气相关参数
+    private static TextView m_MEP;
+    private static TextView m_FVC;
+    private static TextView m_FEV1;
+    private static TextView m_FEV1_percent;
+    private static TextView m_PEF;
+
+    //吸气相关参数
+    private static TextView m_MIP;
+    private static TextView m_PIVC;
+    private static TextView m_PIV1;
+    private static TextView m_PIV1_percent;
+    private static TextView m_PIF;
+
+
     private BluetoothGattCharacteristic m_BluetoothGattCharacteristic;
 
     private static LineChart m_LineChart_flow;
@@ -69,6 +86,13 @@ public class LeDeviceControlActivity extends Activity{
 
     private static ArrayList<Float> pressure_data= new ArrayList<>();
     private static ArrayList<Float> flow_data= new ArrayList<>();
+
+    private static ArrayList<Float> pressure_filter_data=new ArrayList<>();  //用来获取最大正压
+    private static float EXHALE_PRESSURE_TRIGGER_LIMIT=500;                  //记录正压的触发线 50Pa
+    private static float INHALE_PRESSURE_TRIGGER_LIMIT=-500;                 //记录负压的触发线 -50Pa
+    private static float prev_pressure=0;                                    //记录上一次的压力值
+    private static ArrayList<Float> flow_filter_data=new ArrayList<>();     //用来获取PIVC/FVC，PIV1/FEV1，PIV1%/FEV1%,PIF/PEF等参数
+//    private static boolean b_exhale=true;                                   //标志位，表示当前是呼气还是吸气
     //图标数据存储
     private static ArrayList<Entry> m_values=new ArrayList<>();
     private static ArrayList<Entry> m_pressure_values=new ArrayList<>();
@@ -77,8 +101,10 @@ public class LeDeviceControlActivity extends Activity{
     private static float PRESSURE_Y_LOW_LIMIT=-20000f;      // -2KPa
     private static float PRESSURE_Y_UP_LIMIT=20000f;        //2KPa
 
-    private static float FLOW_Y_LOW_LIMIT=-13000f;     //流量 -130L/min
-    private static float FLOW_Y_UP_LIMIT=14000f;       //流量 140L/min
+//    private static float FLOW_Y_LOW_LIMIT=-13000f;     //流量 -130L/min=-13000/60=215L/s
+//    private static float FLOW_Y_UP_LIMIT=14000f;       //流量 140L/min=14000/60s=235L/s
+    private static float FLOW_Y_LOW_LIMIT=-217f;     //流量 -130L/min=-13000/60=217L/s
+    private static float FLOW_Y_UP_LIMIT=233f;       //流量 140L/min=14000/60s=233L/s
 
     //限制线数值,标签
     private static float PRESSURE_INHALE_LIMIT_LINE_VALUE=-10000f;      //-1KPa
@@ -86,16 +112,34 @@ public class LeDeviceControlActivity extends Activity{
     private static float PRESSURE_EXHALE_LIMIT_LINE_VALUE=10000f;      //1KPa
     private static String PRESSURE_EXHALE_LIMIT_LINE_LABLE="呼气：1Kpa";
 
-    private static float FLOW_INHALE_LIMIT_LINE_VALUE=-13000f;       // 目标50L/min
-    private static String FLOW_INHALE_LIMIT_LINT_LABLE="吸气：-130L/min";
-    private static float FLOW_EXHALE_LIMIT_LINE_VALUE=13000f;       // 目标50L/min
-    private static String FLOW_EXHALE_LIMIT_LINT_LABLE="呼气：130L/min";
+//    private static float FLOW_INHALE_LIMIT_LINE_VALUE=-13000f;       // 目标-130L/min
+//    private static String FLOW_INHALE_LIMIT_LINT_LABLE="吸气：-130L/min";
+//    private static float FLOW_EXHALE_LIMIT_LINE_VALUE=13000f;       // 目标130L/min
+////    private static String FLOW_EXHALE_LIMIT_LINT_LABLE="呼气：130L/min";
+    private static float FLOW_INHALE_LIMIT_LINE_VALUE=-217f;       // 目标-130L/min
+    private static String FLOW_INHALE_LIMIT_LINT_LABLE="吸气：-2.17L/s";
+    private static float FLOW_EXHALE_LIMIT_LINE_VALUE=217f;       // 目标130L/min
+    private static String FLOW_EXHALE_LIMIT_LINT_LABLE="呼气：2.17L/s";
 
     //DataSet Lable
     private static String PRESSURE_DATASET_LABLE="压力(单位：KPa)";     //honeywell
-    private static String FLOW_DATASET_LABLE="流量(单位：L/min)";   //MS5525DSO
+    private static String FLOW_DATASET_LABLE="流量(单位：L/s)";   //MS5525DSO
 
-    private static int DATA_NUMS=4;
+    private static int DATA_NUMS=4;  //pressure和flow一次传上来的数据分别是4个，20ms传上来4+4=8个数据,每个数据2个字节
+
+    private static ArrayList<Float> arry_exhale_starting=new ArrayList<>();
+    private static float MEP_value;
+    private static float MIP_value;
+    private static float FVC_value;
+    private static float PIVC_value;
+    private static float FEV1_value;
+    private static float PIV1_value;
+    private static float FEV1_percent_value;
+    private static float PIV1_percent_value;
+    private static float PEF_value;
+    private static float PIF_value;
+
+
 
     private enum TYPE{
         TYPE_PRESSURE,
@@ -109,6 +153,115 @@ public class LeDeviceControlActivity extends Activity{
         bb.flip ();
         CharBuffer cb = cs.decode (bb);
         return cb.array();
+    }
+
+
+    private static void show_pressure_parameters(boolean positive){
+        if(pressure_filter_data==null||pressure_filter_data.size()==0)
+            return;
+
+        int len=pressure_filter_data.size();
+
+        if(len>=12) {  //12的含义，下位机每隔20ms送来4个数据，12/4=3，3个20ms=60ms，如果呼气只持续了60ms就过滤掉
+            //初始化
+            MEP_value=0;
+            MIP_value=0;
+
+            for(int i=0;i<len;i++){
+                float tmp=pressure_filter_data.get(i);
+                if(positive){
+                    MEP_value=MEP_value>=tmp?MEP_value:tmp;  //最大正压
+                }else {
+                    MIP_value=MIP_value<=tmp?MIP_value:tmp;  //最大负压
+                }
+            }
+            //设置参数
+            if(positive){
+                m_MEP.setTextColor(Color.BLUE);
+                m_MIP.setTextColor(Color.BLACK);
+                m_MEP.setText(String.valueOf((int)(MEP_value/10)).concat(" Pa"));  //MEP
+            }else {
+                m_MEP.setTextColor(Color.BLACK);
+                m_MIP.setTextColor(Color.BLUE);
+                m_MIP.setText(String.valueOf((int)(MIP_value/10)).concat(" Pa")); //MIP
+            }
+        }
+        pressure_filter_data.clear();
+    }
+    private static int GET_DATA_TIME_SPAN=20;   //表示20ms来一次数据
+    private static int DATA_NUMBERS_EACH_TIME=4;   //表示每次接受到数据的个数，压力4个数据，流量4个数据
+    private static int SAMPLE_STEP=2;           //表示下位机采集数据的步长，2ms
+    @SuppressLint("DefaultLocale")
+    private static void show_flow_parameters(boolean positive) {
+        if (flow_filter_data == null || flow_filter_data.size() == 0)
+            return;
+        int len = flow_filter_data.size();
+
+        if (len >= 12) {
+            FVC_value = 0;
+            PIVC_value = 0;
+            FEV1_value = 0;
+            PIV1_value = 0;
+            FEV1_percent_value = 0;
+            PIV1_percent_value = 0;
+            PEF_value = 0;
+            PIF_value = 0;
+
+            for (int i = 0; i < len; i++) {
+                float tmp = flow_filter_data.get(i);
+                if (positive) {
+                    //1秒量，下位机是20ms来一次,20ms对应4个点，1秒对于50*4=200个点
+                    if(i<(1000/GET_DATA_TIME_SPAN*DATA_NUMBERS_EACH_TIME)){
+                        FEV1_value+=tmp*SAMPLE_STEP/1000;
+                    }
+                    FVC_value+=tmp*SAMPLE_STEP/1000;  //下位机是2ms采集一次
+                    PEF_value = PEF_value >= tmp ? PEF_value : tmp;  //PEF
+                } else {
+                    //1秒量，下位机是20ms来一次,50次，就是1秒
+                    if(i<(1000/GET_DATA_TIME_SPAN*DATA_NUMBERS_EACH_TIME)){
+                        PIV1_value+=tmp*SAMPLE_STEP/1000;
+                    }
+                    PIVC_value+=tmp*SAMPLE_STEP/1000;
+                    PIF_value = PIF_value <= tmp ? PIF_value : tmp;  //PIF
+                }
+            }
+            //设置参数
+            if (positive) {
+                //设置字体颜色
+                m_FVC.setTextColor(Color.BLUE);
+                m_FEV1.setTextColor(Color.BLUE);
+                m_FEV1_percent.setTextColor(Color.BLUE);
+                m_PEF.setTextColor(Color.BLUE);
+
+                m_PIVC.setTextColor(Color.BLACK);
+                m_PIV1.setTextColor(Color.BLACK);
+                m_PIV1_percent.setTextColor(Color.BLACK);
+                m_PIF.setTextColor(Color.BLACK);
+
+                m_FVC.setText(String.format("%.3f",FVC_value/100).concat(" L"));                            //FCV
+                m_FEV1.setText(String.format("%.3f",FEV1_value/100).concat(" L"));                           //PEV1
+                m_FEV1_percent.setText(String.format("%2d",(int)(100*FEV1_value/FVC_value)).concat("%"));   //PEV1%
+                m_PEF.setText(String.format("%.3f",PEF_value / 100).concat(" L/s"));                        //PEF
+            } else {
+                //设置字体颜色
+                m_FVC.setTextColor(Color.BLACK);
+                m_FEV1.setTextColor(Color.BLACK);
+                m_FEV1_percent.setTextColor(Color.BLACK);
+                m_PEF.setTextColor(Color.BLACK);
+
+                m_PIVC.setTextColor(Color.BLUE);
+                m_PIV1.setTextColor(Color.BLUE);
+                m_PIV1_percent.setTextColor(Color.BLUE);
+                m_PIF.setTextColor(Color.BLUE);
+
+                m_PIVC.setText(String.format("%.3f",PIVC_value/100).concat(" L"));                          //PIVC
+                m_PIV1.setText(String.format("%.3f",PIV1_value/100).concat(" L"));                           //PIV1
+                m_PIV1_percent.setText(String.format("%2d",(int)(100*PIV1_value/PIVC_value)).concat("%"));   //PEV1%
+                m_PIF.setText(String.format("%.3f",PIF_value / 100).concat(" L/s"));                        //PIF
+            }
+        }
+
+        flow_filter_data.clear();
     }
 
 //    private static int fill_cnt=0;
@@ -131,11 +284,11 @@ public class LeDeviceControlActivity extends Activity{
 //                    //debug
 //                    byte b= (byte) 0xff;
 //                    char d= (char) b;
-                   if(data.length==1+DATA_NUMS*2*2+2)
-                    {
-                        for(int i=0;i<DATA_NUMS;i++){
-                         short tmp_data1 = (short) (((data[1 + 2 * i] & 0xFF) << 8) | (data[1 + 2 * i + 1] & 0xFF));
+               if(data.length==1+DATA_NUMS*2*2+2) {
+                    for(int i=0;i<DATA_NUMS;i++){
+                        short tmp_data1 = (short) (((data[1 + 2 * i] & 0xFF) << 8) | (data[1 + 2 * i + 1] & 0xFF));
                         short tmp_data2 = (short) (((data[1+DATA_NUMS*2 + 2 * i] & 0xFF) << 8) | (data[1+DATA_NUMS*2 + 2 * i + 1] & 0xFF));
+                        tmp_data2/=60;  //将L/min换成L/s
                         //值如果超过最高值，就将HONEYWELL_Y_UP_LIMIT赋给tmp_data1
                         if(tmp_data1>=(short)PRESSURE_Y_UP_LIMIT){
                             tmp_data1= (short) PRESSURE_Y_UP_LIMIT;
@@ -150,12 +303,36 @@ public class LeDeviceControlActivity extends Activity{
                             tmp_data2=(short)FLOW_Y_LOW_LIMIT;
                         }
 
-//                            pressure_data.add(Float.intBitsToFloat(tmp_data1)/1000);
+                        //将数据收集到指定的ArrayList中
+                        //怎么控制开始和停止？
+                        //不连续的要过滤掉
+
+                        float pressure_tmp=tmp_data1;
+                        if(pressure_tmp>=EXHALE_PRESSURE_TRIGGER_LIMIT){
+                            prev_pressure=pressure_tmp;
+                            pressure_filter_data.add((float)tmp_data1);
+                            flow_filter_data.add((float) tmp_data2);
+                        }else if(prev_pressure>EXHALE_PRESSURE_TRIGGER_LIMIT&&pressure_tmp>INHALE_PRESSURE_TRIGGER_LIMIT&&pressure_tmp<EXHALE_PRESSURE_TRIGGER_LIMIT){
+                            show_pressure_parameters(true);
+                            show_flow_parameters(true);
+                        }
+
+                        if(pressure_tmp<=INHALE_PRESSURE_TRIGGER_LIMIT){
+                            prev_pressure=pressure_tmp;
+                            pressure_filter_data.add((float) tmp_data1);
+                            flow_filter_data.add((float) tmp_data2);
+                        }else if(prev_pressure<=INHALE_PRESSURE_TRIGGER_LIMIT&&pressure_tmp>INHALE_PRESSURE_TRIGGER_LIMIT&&pressure_tmp<EXHALE_PRESSURE_TRIGGER_LIMIT){
+                            show_pressure_parameters(false);
+                            show_flow_parameters(false);
+                        }
+
+
+
                         pressure_data.add((float) tmp_data1);
                         flow_data.add((float) tmp_data2);
                         }
 
-                        if(pressure_data.size()==1500)
+                        if(pressure_data.size()==1000)
                         {
                             for(int i=0;i<DATA_NUMS;i++){
                                 pressure_data.remove(i);
@@ -442,6 +619,18 @@ public class LeDeviceControlActivity extends Activity{
         m_recvCnt=findViewById(R.id.tv_recv_cnt);
         m_LineChart_flow=findViewById(R.id.lineChart_flow);
         m_LineChart_pressure=findViewById(R.id.lineChart_pressure);
+
+        m_MEP=findViewById(R.id.textView_MEP_value);
+        m_FVC=findViewById(R.id.textView_FVC_value);
+        m_FEV1=findViewById(R.id.textView_FEV1_value);
+        m_FEV1_percent=findViewById(R.id.textview_FEV1_percent_value);
+        m_PEF=findViewById(R.id.textView_PEF_value);
+
+        m_MIP=findViewById(R.id.textView_MIP_value);
+        m_PIVC=findViewById(R.id.textView_PIVC_value);
+        m_PIV1=findViewById(R.id.textView_PIV1_value);
+        m_PIV1_percent=findViewById(R.id.textView_PIV1_percent_value);
+        m_PIF=findViewById(R.id.textView_PIF_value);
 
         //获取MainActivity页面传来的设备名字和设备信息
         Intent intent=getIntent();
