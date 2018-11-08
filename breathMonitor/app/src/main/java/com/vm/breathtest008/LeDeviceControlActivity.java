@@ -93,6 +93,9 @@ public class LeDeviceControlActivity extends Activity{
     private static float prev_pressure=0;                                    //记录上一次的压力值
     private static ArrayList<Float> flow_filter_data=new ArrayList<>();     //用来获取PIVC/FVC，PIV1/FEV1，PIV1%/FEV1%,PIF/PEF等参数
 //    private static boolean b_exhale=true;                                   //标志位，表示当前是呼气还是吸气
+    private static final int COLOR_BLUE=Color.BLUE;
+    private static final int COLOR_GRAY=Color.GRAY;
+
     //图标数据存储
     private static ArrayList<Entry> m_values=new ArrayList<>();
     private static ArrayList<Entry> m_pressure_values=new ArrayList<>();
@@ -177,12 +180,12 @@ public class LeDeviceControlActivity extends Activity{
             }
             //设置参数
             if(positive){
-                m_MEP.setTextColor(Color.BLUE);
-                m_MIP.setTextColor(Color.BLACK);
+                m_MEP.setTextColor(COLOR_BLUE);
+                m_MIP.setTextColor(COLOR_GRAY);
                 m_MEP.setText(String.valueOf((int)(MEP_value/10)).concat(" Pa"));  //MEP
             }else {
-                m_MEP.setTextColor(Color.BLACK);
-                m_MIP.setTextColor(Color.BLUE);
+                m_MEP.setTextColor(COLOR_GRAY);
+                m_MIP.setTextColor(COLOR_BLUE);
                 m_MIP.setText(String.valueOf((int)(MIP_value/10)).concat(" Pa")); //MIP
             }
         }
@@ -190,7 +193,7 @@ public class LeDeviceControlActivity extends Activity{
     }
     private static int GET_DATA_TIME_SPAN=20;   //表示20ms来一次数据
     private static int DATA_NUMBERS_EACH_TIME=4;   //表示每次接受到数据的个数，压力4个数据，流量4个数据
-    private static int SAMPLE_STEP=2;           //表示下位机采集数据的步长，2ms
+    private static int SAMPLE_STEP=5;           //表示下位机采集数据的步长，5ms
     @SuppressLint("DefaultLocale")
     private static void show_flow_parameters(boolean positive) {
         if (flow_filter_data == null || flow_filter_data.size() == 0)
@@ -228,15 +231,15 @@ public class LeDeviceControlActivity extends Activity{
             //设置参数
             if (positive) {
                 //设置字体颜色
-                m_FVC.setTextColor(Color.BLUE);
-                m_FEV1.setTextColor(Color.BLUE);
-                m_FEV1_percent.setTextColor(Color.BLUE);
-                m_PEF.setTextColor(Color.BLUE);
+                m_FVC.setTextColor(COLOR_BLUE);
+                m_FEV1.setTextColor(COLOR_BLUE);
+                m_FEV1_percent.setTextColor(COLOR_BLUE);
+                m_PEF.setTextColor(COLOR_BLUE);
 
-                m_PIVC.setTextColor(Color.BLACK);
-                m_PIV1.setTextColor(Color.BLACK);
-                m_PIV1_percent.setTextColor(Color.BLACK);
-                m_PIF.setTextColor(Color.BLACK);
+                m_PIVC.setTextColor(COLOR_GRAY);
+                m_PIV1.setTextColor(COLOR_GRAY);
+                m_PIV1_percent.setTextColor(COLOR_GRAY);
+                m_PIF.setTextColor(COLOR_GRAY);
 
                 m_FVC.setText(String.format("%.3f",FVC_value/100).concat(" L"));                            //FCV
                 m_FEV1.setText(String.format("%.3f",FEV1_value/100).concat(" L"));                           //PEV1
@@ -244,15 +247,15 @@ public class LeDeviceControlActivity extends Activity{
                 m_PEF.setText(String.format("%.3f",PEF_value / 100).concat(" L/s"));                        //PEF
             } else {
                 //设置字体颜色
-                m_FVC.setTextColor(Color.BLACK);
-                m_FEV1.setTextColor(Color.BLACK);
-                m_FEV1_percent.setTextColor(Color.BLACK);
-                m_PEF.setTextColor(Color.BLACK);
+                m_FVC.setTextColor(COLOR_GRAY);
+                m_FEV1.setTextColor(COLOR_GRAY);
+                m_FEV1_percent.setTextColor(COLOR_GRAY);
+                m_PEF.setTextColor(COLOR_GRAY);
 
-                m_PIVC.setTextColor(Color.BLUE);
-                m_PIV1.setTextColor(Color.BLUE);
-                m_PIV1_percent.setTextColor(Color.BLUE);
-                m_PIF.setTextColor(Color.BLUE);
+                m_PIVC.setTextColor(COLOR_BLUE);
+                m_PIV1.setTextColor(COLOR_BLUE);
+                m_PIV1_percent.setTextColor(COLOR_BLUE);
+                m_PIF.setTextColor(COLOR_BLUE);
 
                 m_PIVC.setText(String.format("%.3f",PIVC_value/100).concat(" L"));                          //PIVC
                 m_PIV1.setText(String.format("%.3f",PIV1_value/100).concat(" L"));                           //PIV1
