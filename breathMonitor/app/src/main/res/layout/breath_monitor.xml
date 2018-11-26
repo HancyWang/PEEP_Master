@@ -49,19 +49,19 @@
                 android:id="@+id/textview_PIVC_lable"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/pivc" />
+                android:text="@string/fivc" />
 
             <TextView
                 android:id="@+id/textView_PIV1_lable"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/piv1" />
+                android:text="@string/fiv1" />
 
             <TextView
                 android:id="@+id/textview_PIV1_percent_lable"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="PIV1%:" />
+                android:text="FIV1%:" />
 
             <TextView
                 android:id="@+id/textView_PIF_lable"
